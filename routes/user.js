@@ -1,11 +1,29 @@
 const router=require("express").Router();
 const User=require("../models/User")
 const bcrypt=require('bcrypt')
+const jwt=require("jsonwebtoken")
 
 router.get("/",(req,res)=>{
     res.send("hey it's user routes")
 })
 
+const verify = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const token = authHeader.split(" ")[1];
+  
+      jwt.verify(token, "mySecretKey", (err,user) => {
+        if (err) {
+          return res.status(403).json("Token is not valid!");
+        }
+  
+        req.user = user;
+        next();
+      });
+    } else {
+      res.status(401).json("You are not authenticated!");
+    }
+  };
 //update user
 router.put("/:id", async (req, res) => {
     if (req.body.userId === req.params.id || req.body.isAdmin) {
@@ -30,26 +48,14 @@ router.put("/:id", async (req, res) => {
     }
   });
 //delete user
-router.delete("/:id", async (req, res) => {
-    if (req.body.userId === req.params.id || req.body.IsAdmin) {
-      if (req.body.password) {
-        try {
-          const salt = await bcrypt.genSalt(10);
-          req.body.password = await bcrypt.hash(req.body.password, salt);
-        } catch (err) {
-          return res.status(500).json(err);
-        }
-      }
-      try {
-        const user = await User.findByIdAndDelete(req.params.id);
-        res.status(200).json("Account has been deleted");
-      } catch (err) {
-        return res.status(500).json(err);
-      }
-    } else {
-      return res.status(403).json("You can delete only your account!");
+router.delete("/:id",verify,(req,res)=>{
+    if(req.user.id === req.params.id || req.user.IsAdmin){
+        res.status(200).json("user has been deleted")
     }
-  });
+    else{
+        res.status(403).json("you are not allowed to delete this user")
+    }
+})
 
 //get a user
 
